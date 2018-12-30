@@ -23,26 +23,15 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		(DLGPROC)[](HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)->INT_PTR {
 		UNREFERENCED_PARAMETER(lParam);
 		RECT rcSpace = { 0L };
-		::SetRect(&rcSpace, 4, 62, 6, 6);
+		::SetRect(&rcSpace, 6, 72, 6, 6);
 		switch (uMsg)
 		{
 		case WM_INITDIALOG:
 		{
 			CWindowConsole::NewWindowConsole(hWnd, &rcSpace);
-			CWindowConsole::SendConsoleString(hWnd, _T("\n"));
 			::SetConsoleCP(CP_UTF8);
 		}
 		return (INT_PTR)TRUE;
-		/*case WM_MOVE:
-		case WM_MOVING:
-		case WM_SIZE:
-		case WM_SIZING:
-		case WM_ENTERSIZEMOVE:
-		case WM_EXITSIZEMOVE:
-		{
-			::ShowWindow(CWindowConsole::GetWindowHwnd(hWnd), SW_SHOW);
-		}
-		break;*/
 		case WM_COMMAND:
 		{
 			switch (LOWORD(wParam))
@@ -67,7 +56,7 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 			break;
 			default:
 			{
-
+				
 			}
 			break;
 			}
@@ -75,7 +64,7 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		break;
 		default:
 		{
-			
+			//CWindowConsole::SetForegroundWindow(hWnd);
 		}
 		break;
 		}

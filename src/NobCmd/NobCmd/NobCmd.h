@@ -121,7 +121,7 @@ public:
 		_TCHAR T_CMD_PATH[MAX_PATH] = { 0 };
 		RECT rcSpace = { 0 };
 
-		::wsprintf(T_CMD_NAME, _T("00A%lX%lXA00"), ::GetModuleHandle(NULL), ::GetCurrentProcessId());
+		_sntprintf(T_CMD_NAME, sizeof(T_CMD_NAME) / sizeof(*T_CMD_NAME), _T("00A%XA00"), ::GetModuleHandle(NULL) + ::GetCurrentProcessId() + ::GetCurrentThreadId());
 
 		if (!((hWnd = GetWindowHwnd(hParentWnd)) &&
 			(dwThreadId = ::GetWindowThreadProcessId(hWnd, &dwProcessId)) &&
@@ -132,9 +132,9 @@ public:
 			si.dwFlags = STARTF_USESHOWWINDOW;
 			::GetSystemDirectory(T_CMD_PATH, sizeof(T_CMD_PATH) / sizeof(*T_CMD_PATH));
 			::lstrcat(T_CMD_PATH, _T("\\CMD.EXE"));
-			::wsprintf(T_CMD_LINE, _T(" /K TITLE %s"), T_CMD_NAME);
-
-			bResult = ::CreateProcess(T_CMD_PATH, T_CMD_LINE, NULL, NULL, FALSE, NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi);
+			_sntprintf(T_CMD_LINE, sizeof(T_CMD_LINE) / sizeof(*T_CMD_LINE), _T(" /K TITLE %s"), T_CMD_NAME);
+			
+			bResult = ::CreateProcess(T_CMD_PATH, T_CMD_LINE, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi);
 			if (bResult)
 			{
 				// Close the handles.
@@ -143,7 +143,7 @@ public:
 
 				while (pi.dwProcessId && pi.dwThreadId)
 				{
-					if ((hWnd = ::FindWindow(NULL, T_CMD_NAME)) &&
+					if ((hWnd = ::FindWindowEx(NULL, NULL, _T("ConsoleWindowClass"), T_CMD_NAME)) &&
 						(dwThreadId = ::GetWindowThreadProcessId(hWnd, &dwProcessId)) &&
 						(dwProcessId == pi.dwProcessId && dwThreadId == pi.dwThreadId))
 					{
@@ -196,19 +196,23 @@ public:
 	{
 		RECT rect = { 0 };
 		SIZE size = { 0 };
-		RECT rcex = { 0 };
-		::SetRect(&rcex, 2L,
-			::GetSystemMetrics(SM_CYSIZE) + ::GetSystemMetrics(SM_CYBORDER) + ::GetSystemMetrics(SM_CYDLGFRAME),
-			::GetSystemMetrics(SM_CXBORDER) + ::GetSystemMetrics(SM_CXDLGFRAME),
-			::GetSystemMetrics(SM_CYBORDER) + ::GetSystemMetrics(SM_CYDLGFRAME));
-		SetWindowEllispeFrame(hWnd, &size, &rcex);
 		::SetParent(hWnd, hParentWnd);
-		::SetWindowLong(hWnd, GWL_STYLE, WS_CHILD | WS_VISIBLE);
+		::SetWindowLongPtr(hWnd, GWL_STYLE, ::GetWindowLongPtr(hWnd, GWL_STYLE) & (~WS_CAPTION) & (~WS_POPUPWINDOW) & (~WS_THICKFRAME) & (~WS_HSCROLL) & (~WS_VSCROLL));
+		if (GetLastError() != ERROR_SUCCESS)
+		{
+			::SetRect(&rect,
+				::GetSystemMetrics(SM_CXFRAME),
+				::GetSystemMetrics(SM_CYFRAME) + ::GetSystemMetrics(SM_CYCAPTION),
+				::GetSystemMetrics(SM_CXFRAME) + ::GetSystemMetrics(SM_CXVSCROLL),
+				::GetSystemMetrics(SM_CYFRAME) + ::GetSystemMetrics(SM_CYHSCROLL));
+			SetWindowEllispeFrame(hWnd, &size, &rect);
+		}
 		::GetClientRect(hParentWnd, &rect);
 		::MoveWindow(hWnd, rect.left + prcSpace->left, rect.top + prcSpace->top, rect.right - rect.left - prcSpace->left - prcSpace->right, rect.bottom - rect.top - prcSpace->top - prcSpace->bottom, FALSE);
 		::RedrawWindow(hParentWnd, &rect, NULL, RDW_ALLCHILDREN | RDW_UPDATENOW | RDW_INVALIDATE);
+		::SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 		::ShowWindow(hWnd, SW_SHOW);
-		//::SetWindowPos(hWnd, HWND_NOTOPMOST, rect.left + prcSpace->left, rect.top + prcSpace->top, rect.right - rect.left - prcSpace->left - prcSpace->right, rect.bottom - rect.top - prcSpace->top - prcSpace->bottom, SWP_SHOWWINDOW);
+		::SetForegroundWindow(hWnd);
 		return (::SetProp(hParentWnd, T_KEY_CONSOLE_WND, reinterpret_cast<HANDLE>(hWnd)) &
 			::SetProp(hParentWnd, T_KEY_CONSOLE_TID, reinterpret_cast<HANDLE>(dwThreadId)) &
 			::SetProp(hParentWnd, T_KEY_CONSOLE_PID, reinterpret_cast<HANDLE>(dwProcessId)));
@@ -221,9 +225,13 @@ public:
 	{ 
 		return reinterpret_cast<DWORD>(::GetProp(hParentWnd, T_KEY_CONSOLE_TID));
 	};
-	__inline static DWORD GetWindowProcessId(HWND hParentWnd) 
-	{ 
+	__inline static DWORD GetWindowProcessId(HWND hParentWnd)
+	{
 		return reinterpret_cast<DWORD>(::GetProp(hParentWnd, T_KEY_CONSOLE_PID));
+	};
+	__inline static BOOL SetForegroundWindow(HWND hParentWnd)
+	{
+		return ::SetForegroundWindow((HWND)::GetProp(hParentWnd, T_KEY_CONSOLE_WND));
 	};
 	__inline static BOOL EndConsoleWindow(HWND hParentWnd)
 	{
